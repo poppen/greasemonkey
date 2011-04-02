@@ -259,6 +259,9 @@ GM_GreasemonkeyService.prototype = {
     var xmlhttpRequester;
     var resources;
     var unsafeContentWin = wrappedContentWin.wrappedJSObject;
+    var sharedWindow = {};
+    sharedWindow.window = sharedWindow;
+    sharedWindow.__proto__ = new XPCNativeWrapper(unsafeContentWin);
 
     // detect and grab reference to firebug console and context, if it exists
     var firebugConsole = this.getFirebugConsole(unsafeContentWin, chromeWin);
@@ -299,6 +302,8 @@ GM_GreasemonkeyService.prototype = {
                                            "contentStartRequest");
       sandbox.GM_registerMenuCommand = GM_hitch(
           this, "registerMenuCommand", wrappedContentWin, chromeWin, script);
+
+      sandbox.window = sharedWindow;
 
       // Re-wrap the window before assigning it to the sandbox.__proto__
       // This is a workaround for a bug in which the Security Manager
