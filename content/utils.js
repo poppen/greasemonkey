@@ -373,9 +373,7 @@ function GM_scriptDir() {
 }
 
 function GM_installUri(uri, contentWin) {
-  var win = Components.classes['@mozilla.org/appshell/window-mediator;1']
-    .getService(Components.interfaces.nsIWindowMediator)
-    .getMostRecentWindow("navigator:browser");
+  var win = GM_getBrowserWindow();
   if (win && win.GM_BrowserUI) {
     win.GM_BrowserUI.startInstallScript(uri, contentWin);
     return true;
@@ -428,4 +426,57 @@ function GM_newUserScript() {
 // Open the add-ons manager and show the installed user scripts.
 if (typeof GM_OpenScriptsMgr == "undefined") {
   function GM_OpenScriptsMgr() { BrowserOpenAddonsMgr('userscripts'); }
+}
+
+function GM_windowId(win) {
+  try {
+    // Do not operate on chrome windows.
+    win.QueryInterface(Components.interfaces.nsIDOMChromeWindow);
+    return null;
+  } catch (e) {
+    // We want this to fail.  Catch is no-op.
+  }
+
+  try {
+    // Dunno why this is necessary, but sometimes we get non-chrome windows
+    // whose locations we cannot access.
+    var href = win.location.href;
+    if (!GM_isGreasemonkeyable(href)) return null;
+  } catch (e) {
+    return null;
+  }
+
+  var domWindowUtils = win
+      .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+      .getInterface(Components.interfaces.nsIDOMWindowUtils);
+  var windowId;
+  try {
+    windowId = domWindowUtils.currentInnerWindowID;
+  } catch (e) { }
+  if ('undefined' == typeof windowId) {
+    // Firefox <4.0 does not provide this, use the document instead.
+    // (Document is a property of the window, and should let us dig into the
+    // "inner window" rather than always getting the same "outer window", due
+    // to bfcache.  https://developer.mozilla.org/en/Inner_and_outer_windows )
+    return win.document;
+  }
+  return windowId;
+}
+
+function GM_windowIdForEvent(aEvent) {
+  var doc = aEvent.originalTarget;
+  try {
+    doc.QueryInterface(Components.interfaces.nsIDOMHTMLDocument);
+  } catch (e) {
+    return null;
+  }
+
+  return GM_windowId(doc.defaultView);
+}
+
+function GM_getBrowserWindow() {
+  return Components
+     .classes['@mozilla.org/appshell/window-mediator;1']
+     .getService(Components.interfaces.nsIWindowMediator)
+     .getMostRecentWindow("navigator:browser");
 }
